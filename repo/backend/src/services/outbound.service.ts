@@ -176,12 +176,13 @@ export async function generateWave(
           where: { facilityId: data.facilityId, isActive: true, deletedAt: null },
           take: 1,
         });
-        if (locations.length > 0) {
+        const fallbackLocation = locations[0];
+        if (fallbackLocation) {
           pickTaskInputs.push({
             orderId: order.id,
             orderLineId: line.id,
             skuId: line.skuId,
-            locationId: locations[0].id,
+            locationId: fallbackLocation.id,
             quantity: line.quantity,
             sequence: sequence++,
           });

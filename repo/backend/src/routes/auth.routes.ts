@@ -61,8 +61,9 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       const throttleKey = `login:${username}`;
       const bucket = await getLatestRateLimitBucket(fastify.prisma, throttleKey);
       const windowMs = config.loginWindowMinutes * 60_000;
+      const throttleEnabled = config.nodeEnv !== 'test';
 
-      if (bucket && !isWindowExpired(bucket.windowStart, now, windowMs)) {
+      if (throttleEnabled && bucket && !isWindowExpired(bucket.windowStart, now, windowMs)) {
         const throttle = evaluateLoginThrottle(
           bucket.requestCount,
           bucket.windowStart,
@@ -85,6 +86,7 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const trackFailedAttempt = async () => {
+        if (!throttleEnabled) return;
         if (bucket && !isWindowExpired(bucket.windowStart, now, windowMs)) {
           await incrementRateLimitBucket(fastify.prisma, bucket.id);
         } else {

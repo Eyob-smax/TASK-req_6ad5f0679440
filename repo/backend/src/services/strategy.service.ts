@@ -330,9 +330,13 @@ export async function runSimulation(
     // Location.type fields rather than a string-prefix heuristic.
     let estimatedTotalDistance = 0;
     for (let i = 1; i < scoredTasks.length; i++) {
+      const previousTask = scoredTasks[i - 1];
+      const currentTask = scoredTasks[i];
+      if (!previousTask || !currentTask) continue;
+
       estimatedTotalDistance += estimatePickStepDistance(
-        scoredTasks[i - 1].task.location,
-        scoredTasks[i].task.location,
+        previousTask.task.location,
+        currentTask.task.location,
       );
     }
 

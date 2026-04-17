@@ -20,8 +20,8 @@ const prismaPlugin: FastifyPluginAsync<PrismaPluginOptions> = async (fastify, op
 
   // Enable WAL mode for concurrent reads alongside one writer,
   // and set a busy timeout to avoid immediate lock errors under write load.
-  await prisma.$executeRaw`PRAGMA journal_mode=WAL`;
-  await prisma.$executeRaw`PRAGMA busy_timeout=5000`;
+  await prisma.$queryRawUnsafe('PRAGMA journal_mode=WAL');
+  await prisma.$queryRawUnsafe('PRAGMA busy_timeout=5000');
 
   fastify.decorate('prisma', prisma);
 

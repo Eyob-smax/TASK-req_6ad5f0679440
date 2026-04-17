@@ -1,8 +1,5 @@
 import { scrypt, randomBytes, timingSafeEqual } from 'node:crypto';
-import { promisify } from 'node:util';
 import { encryptFieldString, decryptFieldString } from './encryption.js';
-
-const scryptAsync = promisify(scrypt);
 
 // scrypt cost parameters — tuned for server-side use on Node 20
 const SCRYPT_N = 32768; // CPU/memory cost factor
@@ -10,6 +7,24 @@ const SCRYPT_R = 8;     // block size
 const SCRYPT_P = 1;     // parallelization factor
 const KEY_LEN = 64;     // output length in bytes
 const SALT_LEN = 16;    // random salt length in bytes
+const SCRYPT_MAXMEM = 64 * 1024 * 1024; // keep above N*r*128 requirement
+
+function scryptAsync(
+  password: string,
+  salt: Buffer,
+  keyLen: number,
+  options: { N: number; r: number; p: number; maxmem: number },
+): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    scrypt(password, salt, keyLen, options, (error, derivedKey) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve(Buffer.from(derivedKey));
+    });
+  });
+}
 
 // Stored format: `1:{N}:{r}:{p}:{saltHex}:{hashHex}`
 // The leading version number allows future parameter upgrades.
@@ -20,11 +35,12 @@ const SALT_LEN = 16;    // random salt length in bytes
  */
 export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(SALT_LEN);
-  const hash = (await scryptAsync(password, salt, KEY_LEN, {
+  const hash = await scryptAsync(password, salt, KEY_LEN, {
     N: SCRYPT_N,
     r: SCRYPT_R,
     p: SCRYPT_P,
-  })) as Buffer;
+    maxmem: SCRYPT_MAXMEM,
+  });
   return `1:${SCRYPT_N}:${SCRYPT_R}:${SCRYPT_P}:${salt.toString('hex')}:${hash.toString('hex')}`;
 }
 
@@ -37,17 +53,20 @@ export async function verifyPassword(password: string, stored: string): Promise<
   if (parts.length !== 6) return false;
 
   const [, N, r, p, saltHex, hashHex] = parts;
+  if (!N || !r || !p || !saltHex || !hashHex) return false;
+
   const salt = Buffer.from(saltHex, 'hex');
   const expectedHash = Buffer.from(hashHex, 'hex');
 
   if (salt.length === 0 || expectedHash.length === 0) return false;
 
   try {
-    const actualHash = (await scryptAsync(password, salt, expectedHash.length, {
+    const actualHash = await scryptAsync(password, salt, expectedHash.length, {
       N: parseInt(N, 10),
       r: parseInt(r, 10),
       p: parseInt(p, 10),
-    })) as Buffer;
+      maxmem: SCRYPT_MAXMEM,
+    });
     return timingSafeEqual(actualHash, expectedHash);
   } catch {
     return false;

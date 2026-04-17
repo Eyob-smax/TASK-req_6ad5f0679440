@@ -33,6 +33,11 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   assertEncryptionKeyOrFail(config);
 
   const app = Fastify({
+    ajv: {
+      customOptions: {
+        removeAdditional: false,
+      },
+    },
     logger: {
       level: config.logLevel,
       // Redact sensitive request fields from log output
@@ -61,8 +66,22 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   // into the standard envelope. Route handlers that send their own error
   // envelopes are unaffected because they return before throwing.
   app.setErrorHandler((error, request, reply) => {
-    if (error.validation && error.validation.length > 0) {
-      const details = error.validation.map((v) => {
+    const err = error as {
+      validation?: Array<{
+        instancePath?: string;
+        params?: { missingProperty?: string };
+        message?: string;
+      }>;
+      statusCode?: number;
+      message?: string;
+    };
+
+    if (err.validation && err.validation.length > 0) {
+      const details = err.validation.map((v: {
+        instancePath?: string;
+        params?: { missingProperty?: string };
+        message?: string;
+      }) => {
         // `instancePath` is like "/body/username"; strip the leading slash.
         const rawField = (v.instancePath ?? '').replace(/^\//, '').replace(/\//g, '.');
         const missing = (v.params as { missingProperty?: string } | undefined)?.missingProperty;
@@ -73,26 +92,26 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         errorResponse(ErrorCode.VALIDATION_FAILED, 'Request validation failed', request.id, details),
       );
     }
-    if (error.statusCode === 401) {
+    if (err.statusCode === 401) {
       return reply.status(401).send(
-        errorResponse(ErrorCode.UNAUTHORIZED, error.message || 'Unauthorized', request.id),
+        errorResponse(ErrorCode.UNAUTHORIZED, err.message || 'Unauthorized', request.id),
       );
     }
-    if (error.statusCode === 403) {
+    if (err.statusCode === 403) {
       return reply.status(403).send(
-        errorResponse(ErrorCode.FORBIDDEN, error.message || 'Forbidden', request.id),
+        errorResponse(ErrorCode.FORBIDDEN, err.message || 'Forbidden', request.id),
       );
     }
-    if (error.statusCode === 404) {
+    if (err.statusCode === 404) {
       return reply.status(404).send(
-        errorResponse(ErrorCode.NOT_FOUND, error.message || 'Not found', request.id),
+        errorResponse(ErrorCode.NOT_FOUND, err.message || 'Not found', request.id),
       );
     }
     request.log.error({ err: error }, 'unhandled error');
-    return reply.status(error.statusCode ?? 500).send(
+    return reply.status(err.statusCode ?? 500).send(
       errorResponse(
         ErrorCode.INTERNAL_ERROR,
-        error.message || 'Internal server error',
+        err.message || 'Internal server error',
         request.id,
       ),
     );

@@ -341,7 +341,7 @@ export function computeShortageQuantity(
 
 // ---- Parameter Key Format ----
 
-const PARAMETER_KEY_PATTERN = /^[a-zA-Z0-9._:-]+$/;
+const PARAMETER_KEY_PATTERN = /^[a-zA-Z0-9.:-]+$/;
 
 /** Returns true if the parameter key matches the allowed format. */
 export function isValidParameterKey(key: string): boolean {

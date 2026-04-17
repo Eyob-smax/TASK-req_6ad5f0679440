@@ -75,7 +75,7 @@ describe('isValidParameterKey — invalid keys', () => {
 // ---- Admin schema constants ----
 
 describe('Admin schema constants — parameter key pattern', () => {
-  const KEY_PATTERN = /^[a-zA-Z0-9._:-]+$/;
+  const KEY_PATTERN = /^[a-zA-Z0-9.:-]+$/;
 
   it('matches the same pattern as admin schema', () => {
     expect(KEY_PATTERN.test('cms.trending.window')).toBe(true);

@@ -31,6 +31,11 @@ COPY --from=build /app/dist ./dist/
 COPY --from=build /app/node_modules ./node_modules/
 COPY --from=build /app/prisma ./prisma/
 COPY --from=build /app/package.json ./
+COPY --from=build /app/tsconfig.json ./
+COPY --from=build /app/src ./src/
+COPY vitest.unit.config.ts vitest.api.config.ts ./
+COPY unit_tests ./unit_tests/
+COPY api_tests ./api_tests/
 
 RUN mkdir -p /app/database /app/backups && \
     chown -R greencycle:greencycle /app/database /app/backups
@@ -49,6 +54,6 @@ ENV LOG_LEVEL=info
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD wget -qO- http://localhost:3000/health || exit 1
+  CMD wget -qO- http://127.0.0.1:3000/health || exit 1
 
 CMD ["node", "dist/index.js"]
