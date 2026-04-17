@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { PrismaClient } from '@prisma/client';
 import { ErrorCode } from '../shared/envelope.js';
 import { calculateVariancePercent, computePackVerificationStatus } from '../shared/invariants.js';
@@ -162,6 +162,37 @@ export async function generateWave(
     estimatedDistance?: number;
   }> = [];
 
+  let fallbackLocationId: string | null = null;
+
+  const getFallbackLocationId = async (): Promise<string> => {
+    if (fallbackLocationId) return fallbackLocationId;
+
+    const existing = await prisma.location.findFirst({
+      where: { facilityId: data.facilityId, isActive: true, deletedAt: null },
+      orderBy: { createdAt: 'asc' },
+    });
+    if (existing) {
+      fallbackLocationId = existing.id;
+      return fallbackLocationId;
+    }
+
+    const created = await prisma.location.create({
+      data: {
+        id: randomUUID(),
+        facilityId: data.facilityId,
+        code: `AUTO-STAGING-${randomUUID().slice(0, 8).toUpperCase()}`,
+        type: 'STAGING',
+        capacityCuFt: 1000,
+        hazardClass: 'NONE',
+        temperatureBand: 'AMBIENT',
+        isPickFace: false,
+        isActive: true,
+      },
+    });
+    fallbackLocationId = created.id;
+    return fallbackLocationId;
+  };
+
   let sequence = 1;
   for (const order of orders) {
     for (const line of order.lines) {
@@ -170,23 +201,17 @@ export async function generateWave(
       const lots = await findInventoryLotsForSku(prisma, line.skuId);
       const lot = lots.find((l) => l.onHand > 0);
       if (!lot) {
-        // No stock available — still create pick task pointing to first available location
-        // Use first active location in facility as fallback (shortage will be detected at pick time)
-        const locations = await prisma.location.findMany({
-          where: { facilityId: data.facilityId, isActive: true, deletedAt: null },
-          take: 1,
+        // No stock available — still create pick task with a deterministic
+        // fallback location so operations can record shortages in workflow.
+        const locationId = await getFallbackLocationId();
+        pickTaskInputs.push({
+          orderId: order.id,
+          orderLineId: line.id,
+          skuId: line.skuId,
+          locationId,
+          quantity: line.quantity,
+          sequence: sequence++,
         });
-        const fallbackLocation = locations[0];
-        if (fallbackLocation) {
-          pickTaskInputs.push({
-            orderId: order.id,
-            orderLineId: line.id,
-            skuId: line.skuId,
-            locationId: fallbackLocation.id,
-            quantity: line.quantity,
-            sequence: sequence++,
-          });
-        }
       } else {
         pickTaskInputs.push({
           orderId: order.id,

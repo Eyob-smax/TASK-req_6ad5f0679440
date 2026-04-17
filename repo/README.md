@@ -2,7 +2,7 @@
 
 Backend-only API for running an offline environmental supply warehouse paired with a local publishing and membership program. Designed for single-node Docker operation with zero external dependencies.
 
-**Project Type:** pure_backend
+**Project Type:** backend
 **Deployment Model:** single-node Docker container
 
 ## Technology Stack
@@ -68,8 +68,14 @@ This project is Docker-first by design:
 
 - Run application, migrations, scripts, and tests inside Docker containers
 - Keep host setup minimal (Docker Engine / Docker Desktop + `docker compose`)
-- Avoid host-local Node.js package installs for routine workflows
+- Do not install Node.js dependencies on the host machine (`npm install`, `npm ci`, `pnpm install`, `yarn install` are prohibited on host)
 - Use `docker compose run` / `docker compose exec` commands documented below
+
+### Test Execution Policy (Strict)
+
+- All tests must run inside Docker containers.
+- Host-local test execution is not allowed (`vitest`, `npm test`, `npx vitest`, etc.).
+- No host-local dependency installation is allowed.
 
 ## Domain Model
 
@@ -153,7 +159,10 @@ cd repo
 # Generate a 64-hex-char master key once and export it for the current shell
 export ENCRYPTION_MASTER_KEY=$(openssl rand -hex 32)
 
-# Start API service
+# Start API service (legacy command form required by some environments)
+docker-compose up --build -d
+
+# Start API service (modern Docker CLI plugin)
 docker compose up --build -d backend
 
 # Apply Prisma migrations in container
@@ -170,6 +179,47 @@ docker compose logs -f backend
 ```
 
 The server listens on `http://0.0.0.0:3000` by default. After bootstrap, the seeded admin can issue a session via `POST /api/auth/login` and create further users through `POST /api/auth/users`.
+
+## Verification Method
+
+Use either `curl` or Postman to verify end-to-end behavior after startup.
+
+```bash
+# 1) Health endpoint
+curl -s http://127.0.0.1:3000/health
+
+# 2) Login as SYSTEM_ADMIN demo user
+curl -s -X POST http://127.0.0.1:3000/api/auth/login \
+  -H 'content-type: application/json' \
+  -d '{"username":"admin","password":"ChangeMeStrong123!"}'
+
+# 3) Use returned token to call an authenticated endpoint
+curl -s http://127.0.0.1:3000/api/admin/diagnostics \
+  -H "authorization: Bearer <TOKEN_FROM_LOGIN>"
+```
+
+Postman equivalent:
+- Request 1: `GET http://127.0.0.1:3000/health` (expect `status: ok`).
+- Request 2: `POST http://127.0.0.1:3000/api/auth/login` with JSON body and capture `data.token`.
+- Request 3: `GET http://127.0.0.1:3000/api/admin/diagnostics` with `Authorization: Bearer <token>`.
+
+## Demo Credentials and Roles
+
+Authentication is required. Use these demo users for role-based verification.
+
+| Role | Username | Password |
+|---|---|---|
+| SYSTEM_ADMIN | admin | ChangeMeStrong123! |
+| WAREHOUSE_MANAGER | wm_demo | ChangeMeStrong123! |
+| WAREHOUSE_OPERATOR | wo_demo | ChangeMeStrong123! |
+| STRATEGY_MANAGER | sm_demo | ChangeMeStrong123! |
+| MEMBERSHIP_MANAGER | mm_demo | ChangeMeStrong123! |
+| BILLING_MANAGER | bm_demo | ChangeMeStrong123! |
+| CMS_REVIEWER | cms_demo | ChangeMeStrong123! |
+
+Provisioning note:
+- The bootstrap script creates `admin`.
+- Create the remaining demo users with `POST /api/auth/users` as SYSTEM_ADMIN and assign each role exactly as listed.
 
 ## Health Check
 
@@ -251,23 +301,27 @@ docker compose run --rm --no-deps backend npx vitest run --config vitest.unit.co
 docker compose run --rm --no-deps backend npx vitest run --config vitest.api.config.ts
 ```
 
+Host policy:
+- Do not run `npm install`, `npm ci`, `npm test`, or `npx vitest` on the host.
+- If dependencies are needed, they must be resolved inside the Docker image/container only.
+
 ## Docker
 
 ```bash
 # Set required env var (production key — generate once and keep secret)
 export ENCRYPTION_MASTER_KEY=$(openssl rand -hex 32)
 
-# Build and start
+# Build and start (legacy command form)
+docker-compose up --build
+
+# Build and start (modern Docker CLI plugin)
 docker compose up --build
 
 # Run full test suite (build → migrate → unit → API)
 ./run_tests.sh
 ```
 
-> **Lockfile:** for fully reproducible Docker builds, run package install inside
-> the backend container to generate `package-lock.json` and commit it. The Dockerfile
-> prefers `npm ci` when a lockfile is present and falls back to `npm install`
-> otherwise, so the build still succeeds without it.
+> **Lockfile:** if `package-lock.json` needs refresh, do it in CI or a Docker build-only environment and commit it. Do not perform host-local dependency installation.
 
 Service: `backend` on port `3000`
 Volumes: `greencycle-data` (SQLite at `/app/database`), `greencycle-backups` (encrypted snapshots at `/app/backups`)

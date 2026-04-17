@@ -318,7 +318,9 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Querystring: ListIpAllowlistQuery }>(
     '/ip-allowlist',
     {
-      preHandler: [fastify.authenticate, fastify.requireRole(adminOnly), ipCheckAdmin],
+      // Allowlist management must remain reachable even when entries would
+      // otherwise block the current caller, preventing administrative lockout.
+      preHandler: [fastify.authenticate, fastify.requireRole(adminOnly)],
       schema: { querystring: listIpAllowlistQuerySchema },
     },
     async (request, reply) => {
@@ -330,7 +332,7 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Body: CreateIpAllowlistBody }>(
     '/ip-allowlist',
     {
-      preHandler: [fastify.authenticate, fastify.requireRole(adminOnly), ipCheckAdmin],
+      preHandler: [fastify.authenticate, fastify.requireRole(adminOnly)],
       schema: { body: createIpAllowlistEntryBodySchema },
     },
     async (request, reply) => {
@@ -350,7 +352,7 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.patch<{ Params: EntryIdParams; Body: UpdateIpAllowlistBody }>(
     '/ip-allowlist/:entryId',
     {
-      preHandler: [fastify.authenticate, fastify.requireRole(adminOnly), ipCheckAdmin],
+      preHandler: [fastify.authenticate, fastify.requireRole(adminOnly)],
       schema: { body: updateIpAllowlistEntryBodySchema },
     },
     async (request, reply) => {
@@ -370,7 +372,7 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.delete<{ Params: EntryIdParams }>(
     '/ip-allowlist/:entryId',
-    { preHandler: [fastify.authenticate, fastify.requireRole(adminOnly), ipCheckAdmin] },
+    { preHandler: [fastify.authenticate, fastify.requireRole(adminOnly)] },
     async (request, reply) => {
       try {
         await removeIpAllowlistEntry(

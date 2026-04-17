@@ -356,7 +356,11 @@ describe('CMS depth — reviewer gating and lifecycle transitions', () => {
     const trendingBody = JSON.parse(trending.payload);
     expect(Array.isArray(trendingBody.data)).toBe(true);
     expect(trendingBody.data.length).toBeGreaterThan(0);
-    expect(trendingBody.data[0].tagId).toBe(tagA);
+    const trendA = trendingBody.data.find((t: { tagId: string; count: number }) => t.tagId === tagA);
+    const trendB = trendingBody.data.find((t: { tagId: string; count: number }) => t.tagId === tagB);
+    expect(trendA).toBeDefined();
+    expect(trendB).toBeDefined();
+    expect((trendA as { count: number }).count).toBeGreaterThan((trendB as { count: number }).count);
 
     const cloud = await app.inject({
       method: 'GET',

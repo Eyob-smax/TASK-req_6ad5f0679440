@@ -39,6 +39,9 @@ describe('Strategy — Unauthenticated access', () => {
       payload: { name: 'Test' },
     });
     expect(res.statusCode).toBe(401);
+    const body = JSON.parse(res.payload);
+    expect(body.success).toBe(false);
+    expect(body.error.code).toBe('UNAUTHORIZED');
   });
 
   it('POST /api/strategy/putaway-rank → 401 without token', async () => {
@@ -86,6 +89,8 @@ describe('Strategy — Validation failures (schema enforcement)', () => {
     expect(res.statusCode).toBe(400);
     const body = JSON.parse(res.payload);
     expect(body.success).toBe(false);
+    expect(body.error.code).toBe('VALIDATION_FAILED');
+    expect(Array.isArray(body.error.details)).toBe(true);
   });
 
   it('POST /api/strategy/putaway-rank missing facilityId → 400', async () => {
@@ -96,6 +101,9 @@ describe('Strategy — Validation failures (schema enforcement)', () => {
       payload: { skuId: 'y', quantity: 1 },
     });
     expect(res.statusCode).toBe(400);
+    const body = JSON.parse(res.payload);
+    expect(body.success).toBe(false);
+    expect(body.error.code).toBe('VALIDATION_FAILED');
   });
 
   it('POST /api/strategy/putaway-rank missing skuId → 400', async () => {
@@ -197,5 +205,7 @@ describe('Strategy — Error envelope shape', () => {
     const body = JSON.parse(res.payload);
     expect(body.success).toBe(false);
     expect(body.error.code).toBe('VALIDATION_FAILED');
+    expect(Array.isArray(body.error.details)).toBe(true);
+    expect(body.meta).toHaveProperty('requestId');
   });
 });

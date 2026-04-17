@@ -83,6 +83,11 @@ describe('Auth routes — validation failures', () => {
       payload: { username: 'alice' }, // missing password
     });
     expect(response.statusCode).toBe(400);
+    const body = JSON.parse(response.payload);
+    expect(body.success).toBe(false);
+    expect(body.error.code).toBe('VALIDATION_FAILED');
+    expect(Array.isArray(body.error.details)).toBe(true);
+    expect(body.meta).toHaveProperty('requestId');
   });
 
   it('POST /api/auth/login with too-short username returns 400', async () => {
@@ -92,6 +97,9 @@ describe('Auth routes — validation failures', () => {
       payload: { username: 'ab', password: 'Password123!' }, // username < 3 chars
     });
     expect(response.statusCode).toBe(400);
+    const body = JSON.parse(response.payload);
+    expect(body.success).toBe(false);
+    expect(body.error.code).toBe('VALIDATION_FAILED');
   });
 
   it('POST /api/auth/login with too-short password returns 400', async () => {
@@ -101,6 +109,9 @@ describe('Auth routes — validation failures', () => {
       payload: { username: 'alice', password: 'short' }, // password < 8 chars
     });
     expect(response.statusCode).toBe(400);
+    const body = JSON.parse(response.payload);
+    expect(body.success).toBe(false);
+    expect(body.error.code).toBe('VALIDATION_FAILED');
   });
 
   it('POST /api/auth/login with extra fields returns 400 (additionalProperties)', async () => {
@@ -110,6 +121,9 @@ describe('Auth routes — validation failures', () => {
       payload: { username: 'alice', password: 'Password123!', injected: true },
     });
     expect(response.statusCode).toBe(400);
+    const body = JSON.parse(response.payload);
+    expect(body.success).toBe(false);
+    expect(body.error.code).toBe('VALIDATION_FAILED');
   });
 });
 
@@ -145,9 +159,12 @@ describe('Auth routes — error envelope shape', () => {
       payload: { username: 'ab' }, // missing password, username too short
     });
     expect(response.statusCode).toBe(400);
-    // Fastify schema validation error shape
     const body = JSON.parse(response.payload);
-    expect(typeof body).toBe('object');
+    expect(body.success).toBe(false);
+    expect(body.error.code).toBe('VALIDATION_FAILED');
+    expect(Array.isArray(body.error.details)).toBe(true);
+    expect(body.meta).toHaveProperty('requestId');
+    expect(body.meta).toHaveProperty('timestamp');
   });
 });
 
