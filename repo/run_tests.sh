@@ -23,6 +23,10 @@ cd "$SCRIPT_DIR"
 # otherwise surface as shell-level errors.
 export COMPOSE_IGNORE_ORPHANS=True
 
+# Provide a deterministic local fallback so the script runs with zero setup
+# even if compose-level defaults are overridden externally.
+export ENCRYPTION_MASTER_KEY="${ENCRYPTION_MASTER_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}"
+
 # Fail fast with explicit diagnostics before running build/test steps.
 if ! docker compose version >/dev/null 2>&1; then
   echo "ERROR: docker compose is not available. Install Docker and ensure 'docker compose' works."

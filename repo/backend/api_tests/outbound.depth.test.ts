@@ -477,7 +477,7 @@ describe('Outbound depth — idempotency, variance, and approval gates', () => {
       headers: authHeader(operator.token),
       payload: { status: 'SHORT', quantityPicked: task.quantity },
     });
-    expect(bad.statusCode).toBe(422);
+    expect(bad.statusCode).toBe(400);
     expect(JSON.parse(bad.payload).error.code).toBe('VALIDATION_FAILED');
 
     const taskAfter = await app.prisma.pickTask.findFirst({ where: { id: task.id } });

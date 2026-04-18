@@ -161,8 +161,8 @@ Implemented:
 ```bash
 cd repo
 
-# Generate a 64-hex-char master key once and export it for the current shell
-export ENCRYPTION_MASTER_KEY=$(openssl rand -hex 32)
+# Zero-setup local start (compose includes a local-only fallback key)
+# Override ENCRYPTION_MASTER_KEY for real deployments.
 
 # Start API service (legacy command form required by some environments)
 docker-compose up --build -d
@@ -250,7 +250,7 @@ Response:
 | `DATABASE_URL` | `file:../database/greencycle.db` | `file:/app/database/greencycle.db` | Prisma SQLite path |
 | `NODE_ENV` | `development` | `production` | Runtime environment |
 | `LOG_LEVEL` | `info` | `info` | Pino log level |
-| `ENCRYPTION_MASTER_KEY` | *(required — hard fail on missing)* | *(required — hard fail on missing)* | 64-hex-char (32-byte) AES master key |
+| `ENCRYPTION_MASTER_KEY` | fixed local fallback (64 hex) | fixed local fallback (64 hex) | AES master key; override in real deployments |
 | `SESSION_TIMEOUT_HOURS` | `8` | `8` | Session lifetime in hours |
 | `LOGIN_MAX_ATTEMPTS` | `5` | `5` | Failed login attempts before throttle |
 | `LOGIN_WINDOW_MINUTES` | `15` | `15` | Window for login throttle counting |
@@ -259,7 +259,7 @@ Response:
 | `KEY_ROTATION_SCHEDULER_ENABLED` | `true` | `true` | Enables automatic overdue key-rotation pass at runtime. |
 | `KEY_ROTATION_CHECK_INTERVAL_MS` | `86400000` | `86400000` | Key-rotation scheduler cadence in milliseconds (default: 24h). |
 
-> **Startup requirement:** in every non-test environment, `ENCRYPTION_MASTER_KEY` must be set to a cryptographically random 64-hex-character string (`openssl rand -hex 32`). Pass via environment variable or `.env` file — never commit.
+> **Deployment requirement:** local development uses a built-in fallback key for zero-setup startup. For any shared or production deployment, set `ENCRYPTION_MASTER_KEY` to a cryptographically random 64-hex-character string (`openssl rand -hex 32`) via environment variable or `.env`.
 
 ## Security Overview
 
@@ -316,16 +316,13 @@ Host policy:
 ## Docker
 
 ```bash
-# Set required env var (production key — generate once and keep secret)
-export ENCRYPTION_MASTER_KEY=$(openssl rand -hex 32)
-
 # Build and start (legacy command form)
 docker-compose up --build
 
 # Build and start (modern Docker CLI plugin)
 docker compose up --build
 
-# Run full test suite (build → migrate → unit → API)
+# Run full test suite (build → migrate → unit → API, zero setup)
 ./run_tests.sh
 ```
 

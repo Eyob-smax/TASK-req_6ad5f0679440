@@ -5,10 +5,10 @@
 #   docker compose up --build
 #   docker compose down
 #
-# Required at runtime (no default — must be supplied):
-#   ENCRYPTION_MASTER_KEY — 64 hex chars (32-byte AES master key)
-#                           Generate: openssl rand -hex 32
-#                           Set via shell export or .env file (never commit)
+# Local dev runtime key behavior:
+#   ENCRYPTION_MASTER_KEY defaults to a fixed 64-hex local-only key so
+#   `docker compose up --build` works out of the box with zero setup.
+#   Override ENCRYPTION_MASTER_KEY in real deployments.
 
 services:
   backend:
@@ -28,8 +28,8 @@ services:
       SESSION_TIMEOUT_HOURS: "8"
       LOGIN_MAX_ATTEMPTS: "5"
       LOGIN_WINDOW_MINUTES: "15"
-      # Required in production: set via environment or .env file
-      ENCRYPTION_MASTER_KEY: "${ENCRYPTION_MASTER_KEY:-}"
+      # Local-only fallback for zero-setup startup; override for real deployments.
+      ENCRYPTION_MASTER_KEY: "${ENCRYPTION_MASTER_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}"
     volumes:
       - greencycle-data:/app/database
       - greencycle-backups:/app/backups

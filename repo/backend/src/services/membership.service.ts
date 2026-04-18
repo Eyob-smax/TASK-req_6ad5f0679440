@@ -363,7 +363,7 @@ export async function recordPayment(
     paidAt,
     createdBy: actorId,
     // Billing retention is deletion-anchored; expiry is set when the record is soft-deleted.
-    retentionExpiresAt: null,
+    retentionExpiresAt: undefined,
   });
 
   await auditCreate(prisma, actorId, 'PaymentRecord', payment.id, {

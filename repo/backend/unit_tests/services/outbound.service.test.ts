@@ -66,6 +66,13 @@ const mockedUpdateWaveStatus = vi.mocked(updateWaveStatus);
 const mockedAuditCreate = vi.mocked(auditCreate);
 const mockedAuditUpdate = vi.mocked(auditUpdate);
 
+function createPrismaMock() {
+  const txCapable = {
+    $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(txCapable)),
+  };
+  return txCapable as never;
+}
+
 describe('outbound.service', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -91,6 +98,8 @@ describe('outbound.service', () => {
   });
 
   it('updatePickTask(COMPLETED) audits order-line fulfillment side effect', async () => {
+    const prisma = createPrismaMock();
+
     mockedFindPickTaskById
       .mockResolvedValueOnce({
         id: 'task-1',
@@ -122,7 +131,7 @@ describe('outbound.service', () => {
     ] as never);
 
     await updatePickTaskService(
-      {} as never,
+      prisma,
       'task-1',
       { status: 'COMPLETED', quantityPicked: 5 },
       'actor-1',
@@ -130,12 +139,12 @@ describe('outbound.service', () => {
     );
 
     expect(mockedUpdateOrderLine).toHaveBeenCalledWith(
-      {} as never,
+      prisma,
       'line-1',
       { quantityFulfilled: 5 },
     );
     expect(mockedAuditUpdate).toHaveBeenCalledWith(
-      {} as never,
+      prisma,
       'actor-1',
       'OutboundOrderLine',
       'line-1',
@@ -151,6 +160,8 @@ describe('outbound.service', () => {
   });
 
   it('updatePickTask(SHORT) audits shortage update and backorder creation side effects', async () => {
+    const prisma = createPrismaMock();
+
     mockedFindPickTaskById
       .mockResolvedValueOnce({
         id: 'task-1',
@@ -186,7 +197,7 @@ describe('outbound.service', () => {
     ] as never);
 
     await updatePickTaskService(
-      {} as never,
+      prisma,
       'task-1',
       { status: 'SHORT', quantityPicked: 6 },
       'actor-1',
@@ -194,12 +205,12 @@ describe('outbound.service', () => {
     );
 
     expect(mockedUpdateOrderLine).toHaveBeenCalledWith(
-      {} as never,
+      prisma,
       'line-1',
       { quantityShort: 4, shortageReason: 'STOCKOUT' },
     );
     expect(mockedAuditUpdate).toHaveBeenCalledWith(
-      {} as never,
+      prisma,
       'actor-1',
       'OutboundOrderLine',
       'line-1',
@@ -212,7 +223,7 @@ describe('outbound.service', () => {
       }),
     );
     expect(mockedAuditCreate).toHaveBeenCalledWith(
-      {} as never,
+      prisma,
       'actor-1',
       'OutboundOrderLine',
       'backorder-1',
@@ -225,6 +236,8 @@ describe('outbound.service', () => {
   });
 
   it('updatePickTask audits wave completion transition when all tasks are terminal', async () => {
+    const prisma = createPrismaMock();
+
     mockedFindPickTaskById
       .mockResolvedValueOnce({
         id: 'task-1',
@@ -257,16 +270,16 @@ describe('outbound.service', () => {
     mockedUpdateWaveStatus.mockResolvedValue({} as never);
 
     await updatePickTaskService(
-      {} as never,
+      prisma,
       'task-1',
       { status: 'COMPLETED', quantityPicked: 3 },
       'actor-1',
       { userId: 'actor-1', roles: ['SYSTEM_ADMIN'] } as never,
     );
 
-    expect(mockedUpdateWaveStatus).toHaveBeenCalledWith({} as never, 'wave-1', 'COMPLETED');
+    expect(mockedUpdateWaveStatus).toHaveBeenCalledWith(prisma, 'wave-1', 'COMPLETED');
     expect(mockedAuditUpdate).toHaveBeenCalledWith(
-      {} as never,
+      prisma,
       'actor-1',
       'Wave',
       'wave-1',
